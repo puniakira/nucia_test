@@ -61,3 +61,4 @@ selected_file = st.selectbox("Select an XML file to display content:", xml_files
 if selected_file:
     content = get_xml_text_content(os.path.join(xml_directory, selected_file))
     st.text_area("Content:", value=content, height=300)
+
