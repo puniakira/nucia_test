@@ -16,7 +16,7 @@ def get_xml_text_content(xml_file, element_name='HASSEIJI_JOKYO_TXT'):
         return ""
 
 # XMLファイルとの類似度検索
-def search_similar_documents(keyword, xml_directory='./xml'):
+def search_similar_documents(keyword, xml_directory='./xml', search_type='similarity'):
     xml_texts = []
     xml_files = []
 
@@ -30,14 +30,18 @@ def search_similar_documents(keyword, xml_directory='./xml'):
 
     results = []
     if xml_texts:
-        vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform([keyword] + xml_texts)
-        cosine_similarities = linear_kernel(tfidf_matrix[0:1], tfidf_matrix).flatten()
-        similarity_scores = list(enumerate(cosine_similarities[1:], start=1))
-
-        sorted_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)[:10]
-        for idx, score in sorted_scores:
-            results.append((xml_files[idx-1], score))
+        if search_type == 'similarity':
+            vectorizer = TfidfVectorizer()
+            tfidf_matrix = vectorizer.fit_transform([keyword] + xml_texts)
+            cosine_similarities = linear_kernel(tfidf_matrix[0:1], tfidf_matrix).flatten()
+            similarity_scores = list(enumerate(cosine_similarities[1:], start=1))
+            sorted_scores = sorted(similarity_scores, key=lambda x: x[1], reverse=True)[:10]
+            for idx, score in sorted_scores:
+                results.append((xml_files[idx-1], score))
+        elif search_type == 'content':
+            for idx, text in enumerate(xml_texts, start=1):
+                if keyword.lower() in text.lower():
+                    results.append((xml_files[idx-1], "Contains keyword"))
 
     return results
 
@@ -45,17 +49,32 @@ def search_similar_documents(keyword, xml_directory='./xml'):
 def main():
     st.title("XML Search and Similarity Tool")
     
-    # キーワード入力
-    keyword = st.text_input("Enter keyword for search or similarity search:")
+    # キーワード入力（大きなテキストボックス）
+    keyword = st.text_area("Enter keyword for search or similarity search:", height=150)
     
-    # 類似度検索ボタン
-    if st.button("Search Similar Documents"):
-        if keyword:
-            results = search_similar_documents(keyword)
-            for filename, score in results:
-                st.write(f"{filename}: Score = {score:.4f}")
-        else:
-            st.error("Please enter a keyword.")
+    col1, col2 = st.columns(2)
+    with col1:
+        # 類似度検索ボタン
+        if st.button("Search Similar Documents"):
+            if keyword:
+                results = search_similar_documents(keyword, search_type='similarity')
+                display_results(results)
+            else:
+                st.error("Please enter a keyword.")
+    with col2:
+        # 部分一致検索ボタン
+        if st.button("Search Documents by Content"):
+            if keyword:
+                results = search_similar_documents(keyword, search_type='content')
+                display_results(results)
+            else:
+                st.error("Please enter a keyword.")
+
+def display_results(results):
+    selected_file = st.selectbox("Select a file to view content", [result[0] for result in results])
+    file_path = os.path.join('./xml', selected_file)
+    xml_text = get_xml_text_content(file_path)
+    st.text_area("XML Content:", value=xml_text, height=300)
 
 if __name__ == "__main__":
     main()
