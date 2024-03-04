@@ -15,6 +15,13 @@ def get_xml_text_content(xml_file, element_name='HASSEIJI_JOKYO_TXT'):
         st.error(f"Error processing file {xml_file}: {e}")
         return ""
 
+# 検索実行関数
+def perform_search():
+    if search_type == "Similarity Search":
+        st.session_state.results = search_similar_documents(st.session_state.query_text, xml_files, xml_texts)
+    else:
+        st.session_state.results = []  # 部分一致検索の結果をここに設定する
+
 # 類似度検索機能
 def search_similar_documents(query_text, xml_files, xml_texts):
     vectorizer = TfidfVectorizer()
@@ -28,7 +35,12 @@ def search_similar_documents(query_text, xml_files, xml_texts):
 # Streamlit UI
 st.title("XML Document Search")
 
-query_text = st.text_area("Enter text for search:", height=150)
+if 'query_text' not in st.session_state:
+    st.session_state.query_text = ''
+if 'results' not in st.session_state:
+    st.session_state.results = []
+
+st.session_state.query_text = st.text_area("Enter text for search:", height=150, key='query_text')
 search_type = st.radio("Select search type:", ("Similarity Search", "Content Search"))
 
 xml_directory = './xml'
@@ -45,18 +57,12 @@ for filename in os.listdir(xml_directory):
             xml_files.append(filename)
 
 if st.button("Search"):
-    if search_type == "Similarity Search":
-        results = search_similar_documents(query_text, xml_files, xml_texts)
-    else:
-        # 部分一致検索はここに実装（本例では省略）
-        results = []
+    perform_search()
 
-    # 検索結果を表示するリストボックスを作成
-    result_files = [f"{filename} - Score: {score:.4f}" for filename, score in results]
-    selected_result = st.selectbox("Select a result:", result_files)
+result_files = [f"{filename} - Score: {score:.4f}" for filename, score in st.session_state.results]
+selected_result = st.selectbox("Select a result:", result_files, key='selected_result')
 
-    # リストボックスの選択に応じてXMLの内容を表示
-    if selected_result:
-        selected_file = selected_result.split(" - ")[0]
-        content = get_xml_text_content(os.path.join(xml_directory, selected_file))
-        st.text_area("Content:", value=content, height=300)
+if selected_result:
+    selected_file = selected_result.split(" - ")[0]
+    content = get_xml_text_content(os.path.join(xml_directory, selected_file))
+    st.text_area("Content:", value=content, height=300, key='content_area')
